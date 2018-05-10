@@ -8,7 +8,6 @@
 
 """
 
-import os, sys
 import numpy as np
 from scipy import signal
 from moviepy.editor import VideoFileClip, concatenate_videoclips
@@ -33,6 +32,7 @@ class LaughDetector():
 		freq = sig_len/duration
 		t = np.arange(0, sig_len, 1)/freq
 
+		# performing hilbert transform and finding the envelope 
 		hil_sig = signal.hilbert(sig)
 		sig_env = np.abs(hil_sig)
 
@@ -51,12 +51,12 @@ class LaughDetector():
 			if smooth_env[i] >= high :
 				
 				if self.timestamps[-1]['e'] >= t[i]-5:
-					self.timestamps[-1]['e'] = np.min([t[i]+2, duration])
+					self.timestamps[-1]['e'] = np.min([t[i]+4, duration])
 				else :
-					# adding two second buffers
+					# adding 4 second buffers
 					self.timestamps.append({
-						's' : np.max([0, t[i]-2]),
-						'e' : np.min([t[i]+2, duration])
+						's' : np.max([0, t[i]-4]),
+						'e' : np.min([t[i]+4, duration])
 					})
 					
 				while i < sig_len and smooth_env[i] >= low:
@@ -78,6 +78,7 @@ class LaughDetector():
 
 if __name__ == "__main__":
 
+	import sys, os
 	file = sys.argv[1]
 	if not os.path.isfile(file):
 		print("There is no " + file +"!")

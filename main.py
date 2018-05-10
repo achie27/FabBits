@@ -36,6 +36,11 @@ class Main(QWidget):
 		]
 		self.current_use_case = ""
 
+		self.processors = {
+			"MOVIES" : [self.jokes_detector],
+			"SPORTS" : []
+		}
+
 		self.fabbit = {}
 
 		self.width, self.height = 750, 475
@@ -70,16 +75,16 @@ class Main(QWidget):
 		op_btn_height = (self.height - (list_height+btn_height))/2
 		op_btn_width = list_width*3/4
 
-		btn = QPushButton("Find FabBits", self)
-		btn.clicked.connect(self.find_fabbits)
-		btn.setGeometry(
+		op_btn1 = QPushButton("Find FabBits", self)
+		op_btn1.clicked.connect(self.find_fabbits)
+		op_btn1.setGeometry(
 			self.width-list_width*3/4, list_height+btn_height, 
 			op_btn_width, op_btn_height
 		)
 
-		btn = QPushButton("Save FabBits", self)
-		btn.clicked.connect(self.save_fabbits)
-		btn.setGeometry(
+		op_btn2 = QPushButton("Save FabBits", self)
+		op_btn2.clicked.connect(self.save_fabbits)
+		op_btn2.setGeometry(
 			self.width-list_width*3/4, 
 			list_height+btn_height+op_btn_height, 
 			op_btn_width, op_btn_height
@@ -96,18 +101,28 @@ class Main(QWidget):
 		placeholder2.setAlignment(QtCore.Qt.AlignCenter)
 		placeholder2.setGeometry(
 			list_width, btn_height,
-			self.width - list_width, self.height-btn_height-op_btn_height			
+			self.width - list_width, 
+			self.height-btn_height-2*op_btn_height			
 		)
 
+
+		self.update_list("MOVIES")
 		self.setWindowTitle('FabBits')
 		self.setFixedSize(self.width, self.height)
 
 		self.show()
 
 
-	def update_list(self, btn):
+	def update_list(self, cat):
+
 		self.list.clear()
-		self.current_cat, id = self.sender().text(), 0
+
+		if cat :
+			self.current_cat = cat
+		else :
+			self.current_cat = self.sender().text()
+			
+		id = 0
 		for use_case in self.use_cases[self.current_cat]:
 			obj = QListWidgetItem(use_case, self.list)
 			obj.id = id
@@ -118,16 +133,17 @@ class Main(QWidget):
 		self.current_use_case = self.sender().currentItem().id
 		# popup window for use cases that need extra info
 
+
 	def find_fabbits(self):
+		print("processing")
+		self.processors[self.current_cat][self.current_use_case]()
+		print("done processing")
 
-		# will make this better soon
-		if self.current_cat == "MOVIES":
-			if self.current_use_case == 0:
-				jokes = LaughDetector(self.file)
-				jokes.find_laughs()
-				self.fabbit = jokes.get_laughs()
 
-		print("finding done")
+	def jokes_detector(self):
+		jokes = LaughDetector(self.file)
+		jokes.find_laughs()
+		self.fabbit = jokes.get_laughs()
 
 
 	def save_fabbits(self):
