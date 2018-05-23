@@ -4,11 +4,12 @@
 	architmathur2011@gmail.com
 
 	Where it all starts!
-	Last updated - 08/05/2018
+	Last updated - 11/05/2018
 
 """
 
 import os, sys
+import threading
 from PyQt5.QtWidgets import \
 	QApplication, QMainWindow, QPushButton, QWidget, QListWidget,\
 	QListWidgetItem, QFileDialog, QLabel
@@ -131,23 +132,24 @@ class Main(QWidget):
 
 	def process_use_case(self):
 		self.current_use_case = self.sender().currentItem().id
-		# popup window for use cases that need extra info
+		# TODO - popup window for use cases that need extra info
 
 
 	def find_fabbits(self):
-		print("processing")
-		self.processors[self.current_cat][self.current_use_case]()
-		print("done processing")
+		thread = MyThread("1", self)
+		thread.start()
 
 
 	def jokes_detector(self):
+		print("processing")
 		jokes = LaughDetector(self.file)
 		jokes.find_laughs()
 		self.fabbit = jokes.get_laughs()
+		print("done processing fabbits for "+self.file)
 
 
 	def save_fabbits(self):
-		self.fabbit['bits'].write_videofile("FabBits.mp4", codec='libx264')
+		self.fabbit['bits'].write_videofile("[FabBits] "+self.filename, codec='libx264')
 
 
 	def set_file(self):
@@ -158,8 +160,24 @@ class Main(QWidget):
 		if self.file[0]:
 			self.file = self.file[0]
 
-		print(self.file)
+		self.filename = self.file[ self.file.rfind('/')+1 : ]
+		print("loaded "+ self.file)
 
+
+class MyThread(threading.Thread):
+	def __init__(self, name, qt_object):
+		super().__init__()
+		print("initialising thread")
+
+		self.name = name
+		self.cat = qt_object.current_cat
+		self.qt_object = qt_object
+		self.use_case = qt_object.current_use_case
+
+	def run(self):
+		print("running thread")
+		self.qt_object.processors[self.cat][self.use_case]()		
+		print("exiting thread")
 
 
 app = QApplication(sys.argv)
