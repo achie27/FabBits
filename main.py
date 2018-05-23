@@ -136,7 +136,8 @@ class Main(QWidget):
 
 
 	def find_fabbits(self):
-		thread = MyThread("1", self)
+		f = lambda : self.processors[self.current_cat][self.current_use_case]()
+		thread = MyThread("1", f)
 		thread.start()
 
 
@@ -149,7 +150,10 @@ class Main(QWidget):
 
 
 	def save_fabbits(self):
-		self.fabbit['bits'].write_videofile("[FabBits] "+self.filename, codec='libx264')
+		name = "[FabBits] " + self.filename
+		f = lambda : self.fabbit['bits'].write_videofile(name, codec='libx264')
+		thread = MyThread("2", f)
+		thread.start()
 
 
 	def set_file(self):
@@ -165,18 +169,15 @@ class Main(QWidget):
 
 
 class MyThread(threading.Thread):
-	def __init__(self, name, qt_object):
+	def __init__(self, name, func):
 		super().__init__()
+		self.func = func
 		print("initialising thread")
 
-		self.name = name
-		self.cat = qt_object.current_cat
-		self.qt_object = qt_object
-		self.use_case = qt_object.current_use_case
 
 	def run(self):
 		print("running thread")
-		self.qt_object.processors[self.cat][self.use_case]()		
+		self.func()		
 		print("exiting thread")
 
 
