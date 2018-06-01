@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import \
 from PyQt5 import QtCore
 
 from laugh_detector import LaughDetector
+from shot_detector import DetectShots
 import helpers
 
 class Main(QWidget):
@@ -38,8 +39,18 @@ class Main(QWidget):
 		self.current_use_case = ""
 
 		self.processors = {
-			"MOVIES" : [self.jokes_detector],
-			"SPORTS" : []
+			"MOVIES" : [
+				self.jokes_detector, 
+				0, 
+				self.shot_detector,
+				0
+			],
+			"SPORTS" : [
+				0,
+				0,
+				0,
+				0
+			]
 		}
 
 		self.fabbit = {}
@@ -145,14 +156,25 @@ class Main(QWidget):
 		print("processing")
 		jokes = LaughDetector(self.file)
 		jokes.find_laughs()
-		self.fabbit = jokes.get_laughs()
+		self.fabbit = jokes
+		print(self.fabbit)
+		print(dir(self.fabbit))
+		print("done processing fabbits for "+self.file)
+
+
+	def shot_detector(self):
+		print("processing")
+		summary = DetectShots(self.file)
+		summary.find_key_frames()
+		self.fabbit = summary
+		print(self.fabbit)
+		print(dir(self.fabbit))
+
 		print("done processing fabbits for "+self.file)
 
 
 	def save_fabbits(self):
-		name = "[FabBits] " + self.filename
-		f = lambda : self.fabbit['bits'].write_videofile(name, codec='libx264')
-		thread = MyThread("2", f)
+		thread = MyThread("2", self.fabbit.save)
 		thread.start()
 
 
@@ -165,7 +187,7 @@ class Main(QWidget):
 			self.file = self.file[0]
 
 		self.filename = self.file[ self.file.rfind('/')+1 : ]
-		print("loaded "+ self.file)
+		print("loaded "+ self.filename)
 
 
 class MyThread(threading.Thread):

@@ -13,3 +13,9 @@ def center(qtobject, parent):
 	cp = parent.frameGeometry().center()
 	qr.moveCenter(cp)
 	qtobject.move(qr.topLeft())
+
+def search(arr, min_ele, max_ele):
+	for i in range(0, len(arr)):
+		if arr[i] >= min_ele and arr[i] <= max_ele :
+			return True
+	return False

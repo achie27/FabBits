@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Module for laughter detection from sitcoms
-	Last updated - 09/05/2018
+	Last updated - 01/06/2018
 
 """
 
@@ -15,7 +15,10 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips
 class LaughDetector():
 	def __init__(self, file_path):
 		self.file = VideoFileClip(file_path)
+		self.filename = file_path[file_path.rfind('/')+1:]
+
 		self.timestamps = []
+		self.jokes = []
 
 	def find_laughs(self):
 
@@ -65,16 +68,24 @@ class LaughDetector():
 
 			i+=1
 
+
 	def get_laughs(self):
-		jokes = []
-		for obj in self.timestamps:
-			jokes.append(self.file.subclip(obj['s'], obj['e']))
-		jokes = concatenate_videoclips(jokes)
-		
 		return {
 			"timestamps" : self.timestamps,
-			"bits" : jokes
 		} 
+
+
+	def save_laughs(self):
+		for obj in self.timestamps:
+			self.jokes.append(self.file.subclip(obj['s'], obj['e']))
+		
+		self.jokes = concatenate_videoclips(self.jokes)
+		self.jokes.write_videofile('[FabBits] '+self.filename, codec='libx264')
+
+
+	def save(self):
+		self.save_laughs()
+
 
 if __name__ == "__main__":
 
@@ -87,4 +98,5 @@ if __name__ == "__main__":
 	op = LaughDetector(file)
 	op.find_laughs()
 	laughs = op.get_laughs()
-	laughs['bits'].write_videofile("jokes_in_"+file, codec='libx264')
+	print(laughs)
+	op.save()
