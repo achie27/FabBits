@@ -13,17 +13,18 @@
 import cv2
 import numpy as np 
 from helpers import search
+from moviepy.editor import ImageSequenceClip
 
 class DetectShots():
 	def __init__(self, file_path):
 		self.k, self.N = 5, 320*240
-		self.a, self.b, self.s = 0.5, 0.25, 8
+		self.a, self.b, self.s = 0.45, 0.25, 8
 		self.hist, self.fd, self.shots, = [], [], []
 		self.total_shots, self.total_frames = 0, 0
 		self.key_frames, self.out = [], []
 
 		self.file = cv2.VideoCapture(file_path)
-		self.filename = file_path[0:file_path.rfind('.')]
+		self.filename = file_path[file_path.rfind('/')+1:]
 		self.fps = self.file.get(cv2.CAP_PROP_FPS)
 		self.T = int(self.fps * 300)
 
@@ -67,7 +68,7 @@ class DetectShots():
 			if self.fd[i] > self.a and local_max :
 				if not search(self.shots, int(i-self.fps*8), int(i+self.fps*8)):
 					self.shots.append(i - self.k)
-			else :
+			else :		
 				if self.fd[i] > self.b and self.fd[i-1] > self.b:
 					counter += 1
 				else:
@@ -105,20 +106,15 @@ class DetectShots():
 		if len(self.key_frames) == 0:
 			self.find_key_frames()	
 
-		h = int(self.file.get(cv2.CAP_PROP_FRAME_HEIGHT))
-		w = int(self.file.get(cv2.CAP_PROP_FRAME_WIDTH))
-
-		codec = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
-		self.out = cv2.VideoWriter(
-			"[FabBits]"+self.filename+'.avi', cv2.CAP_FFMPEG, codec, 1, (w, h)
-		)
-
+		frame_list = []
 		for fr in self.key_frames:
 			self.file.set(1, fr-1)
-			fr = self.file.read()[1]
-			self.out.write(fr)
+			fr = np.array(self.file.read()[1])
+			fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+			frame_list.append(fr)
 
-		self.out.release()
+		self.out = ImageSequenceClip(frame_list, fps=1)			
+		self.out.write_videofile('[FabBits] '+self.filename, codec='libx264')
 
 
 	def save(self):

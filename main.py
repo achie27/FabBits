@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Where it all starts!
-	Last updated - 11/05/2018
+	Last updated - 2/06/2018
 
 """
 
@@ -126,7 +126,6 @@ class Main(QWidget):
 
 
 	def update_list(self, cat):
-
 		self.list.clear()
 
 		if cat :
@@ -157,8 +156,6 @@ class Main(QWidget):
 		jokes = LaughDetector(self.file)
 		jokes.find_laughs()
 		self.fabbit = jokes
-		print(self.fabbit)
-		print(dir(self.fabbit))
 		print("done processing fabbits for "+self.file)
 
 
@@ -167,9 +164,6 @@ class Main(QWidget):
 		summary = DetectShots(self.file)
 		summary.find_key_frames()
 		self.fabbit = summary
-		print(self.fabbit)
-		print(dir(self.fabbit))
-
 		print("done processing fabbits for "+self.file)
 
 
