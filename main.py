@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Where it all starts!
-	Last updated - 2/06/2018
+	Last updated - 10/06/2018
 
 """
 
@@ -17,7 +17,8 @@ from PyQt5 import QtCore
 
 from laugh_detector import LaughDetector
 from shot_detector import DetectShots
-import helpers
+from action_scene_detector import DetectAction
+from helpers import HelperThread
 
 class Main(QWidget):
 	def __init__(self):
@@ -29,7 +30,7 @@ class Main(QWidget):
 		self.use_cases = {}
 		self.use_cases['MOVIES'] = [
 			"Jokes from sitcoms", "Action sequences",
-			"Different settings", "Actor specific scenes"
+			"Summary", "Actor specific scenes"
 		]
 
 		self.use_cases['SPORTS'] = [
@@ -41,7 +42,7 @@ class Main(QWidget):
 		self.processors = {
 			"MOVIES" : [
 				self.jokes_detector, 
-				0, 
+				self.action_detector, 
 				self.shot_detector,
 				0
 			],
@@ -146,15 +147,17 @@ class Main(QWidget):
 
 
 	def find_fabbits(self):
-		f = lambda : self.processors[self.current_cat][self.current_use_case]()
-		thread = MyThread("1", f)
+		cat = self.current_cat
+		use_case = self.current_use_case
+		f = lambda : self.processors[cat][use_case]()
+		thread = HelperThread("1", f)
 		thread.start()
 
 
 	def jokes_detector(self):
 		print("processing")
 		jokes = LaughDetector(self.file)
-		jokes.find_laughs()
+		jokes.process()
 		self.fabbit = jokes
 		print("done processing fabbits for "+self.file)
 
@@ -162,14 +165,24 @@ class Main(QWidget):
 	def shot_detector(self):
 		print("processing")
 		summary = DetectShots(self.file)
-		summary.find_key_frames()
+		summary.process()
 		self.fabbit = summary
 		print("done processing fabbits for "+self.file)
 
 
+	def action_detector(self):
+		print("processing")
+		action = DetectAction(self.file)
+		action.process()
+		self.fabbit = action
+		print("done processing fabbits for "+self.file)
+
+
 	def save_fabbits(self):
-		thread = MyThread("2", self.fabbit.save)
+		thread = HelperThread("2", self.fabbit.save)
 		thread.start()
+		thread.join()
+		print("saved them!")
 
 
 	def set_file(self):
@@ -182,19 +195,6 @@ class Main(QWidget):
 
 		self.filename = self.file[ self.file.rfind('/')+1 : ]
 		print("loaded "+ self.filename)
-
-
-class MyThread(threading.Thread):
-	def __init__(self, name, func):
-		super().__init__()
-		self.func = func
-		print("initialising thread")
-
-
-	def run(self):
-		print("running thread")
-		self.func()		
-		print("exiting thread")
 
 
 app = QApplication(sys.argv)

@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Module for laughter detection from sitcoms
-	Last updated - 01/06/2018
+	Last updated - 10/06/2018
 
 """
 
@@ -20,7 +20,7 @@ class LaughDetector():
 		self.timestamps = []
 		self.jokes = []
 
-	def find_laughs(self):
+	def process(self):
 
 		duration = int(self.file.duration)
 		self.file = self.file.set_duration(duration)
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 		sys.exit()
 
 	op = LaughDetector(file)
-	op.find_laughs()
+	op.process()
 	laughs = op.get_laughs()
 	print(laughs)
 	op.save()

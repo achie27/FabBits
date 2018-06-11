@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Detects shot boundaries and groups them into scenes
-	Last updated - 2/06/2018
+	Last updated - 10/06/2018
 
 	TODO : Make key frame extraction better
 
@@ -12,7 +12,7 @@
 
 import cv2
 import numpy as np 
-from helpers import search
+from helpers import search, HelperThread
 from moviepy.editor import ImageSequenceClip
 
 class DetectShots():
@@ -25,25 +25,46 @@ class DetectShots():
 		self.shot_scene, self.scenes = [], []
 		self.avg_shot_length, self.shot_cut_freq = [], []
 
+		self.file_path = file_path
 		self.file = cv2.VideoCapture(file_path)
 		self.filename = file_path[file_path.rfind('/')+1:]
 		self.fps = self.file.get(cv2.CAP_PROP_FPS)
 		self.T = int(self.fps * 300)
 
 
-	def get_shots(self):
-		self.find_frame_difference()
-		self.find_shots()
+	def multithreaded_fd_calc(self):
+		self.total_frames = int(self.file.get(cv2.CAP_PROP_FRAME_COUNT))
+		self.hist = [0]*self.total_frames
+		self.fd = [0]*self.total_frames
 
-		# shots = [i/self.fps for i in self.shots]
-		return {
-			"timestamps" : self.shots
-		}
+		tmp_file1 = cv2.VideoCapture(self.file_path)
+		tmp_file2 = cv2.VideoCapture(self.file_path)
 
-	def find_frame_difference(self):
-		counter = 0
-		while self.file.isOpened():
-			suc, fr = self.file.read()
+		f1 = lambda : self.calc_frame_diff(
+			1, self.total_frames//3, self.file
+		)
+		f2 = lambda : self.calc_frame_diff(
+			self.total_frames//3, 2*self.total_frames//3, tmp_file1
+		)
+		f3 = lambda : self.calc_frame_diff(
+			2*self.total_frames//3, self.total_frames, tmp_file2
+		)
+
+		a = HelperThread("1", f1) 
+		b = HelperThread("2", f2) 
+		c = HelperThread("3", f3)
+		a.start(), b.start(), c.start()
+		a.join(), b.join(), c.join()
+
+		tmp_file2.release(), tmp_file1.release()
+
+
+	def calc_frame_diff(self, st, end, file):
+		file.set(1, st-1)
+
+		counter = max(0, st-1)
+		while file.isOpened() and counter < end:
+			suc, fr = file.read()
 			if not suc : break
 
 			fr = cv2.resize(fr, (320, 240))
@@ -52,14 +73,10 @@ class DetectShots():
 
 			if counter >= self.k :
 				tmp = np.abs(hist_fr - self.hist[counter-self.k])
-				self.fd.append(
-					np.sum(tmp)/(2*self.N)
-				)
-
-			self.hist.append(hist_fr)
+				self.fd[counter-self.k] = np.sum(tmp)/(2*self.N)
+				
+			self.hist[counter] = hist_fr
 			counter+=1
-
-		self.total_frames = counter - 1
 
 
 	def find_shots(self):
@@ -85,38 +102,9 @@ class DetectShots():
 
 
 	def find_key_frames(self):
-		if self.total_frames==0 or self.total_shots==0:
-			self.find_frame_difference()
-			self.find_shots()
-
 		for i in range(0, self.total_shots):
 			pre = 0 if i == 0 else self.shots[i-1]
 			self.key_frames.append((self.shots[i]+pre)//2)
-
-
-	def get_key_frames(self):
-		if len(self.key_frames) == 0:
-			self.find_key_frames()
-
-		frame_time_stamps = [i/self.fps for i in self.key_frames]
-		return {
-			"timestamps" : frame_time_stamps,
-		}
-
-
-	def save_key_frames(self):
-		if len(self.key_frames) == 0:
-			self.find_key_frames()	
-
-		frame_list = []
-		for fr in self.key_frames:
-			self.file.set(1, fr-1)
-			fr = np.array(self.file.read()[1])
-			fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
-			frame_list.append(fr)
-
-		self.out = ImageSequenceClip(frame_list, fps=1)			
-		self.out.write_videofile('[FabBits] '+self.filename, codec='libx264')
 
 
 	def group_into_scenes(self):
@@ -149,6 +137,30 @@ class DetectShots():
 		for i in range(0, self.total_shots):
 			path_compress(i, self.shot_scene)
 
+
+	def process(self):
+		self.multithreaded_fd_calc()
+		self.find_shots()
+		self.find_key_frames()
+		self.group_into_scenes()
+
+
+	def get_shots(self):
+		# convert = lambda a : a//60 + (a/60 - a//60)*0.6
+		shots = [i/self.fps for i in self.shots]
+		return {
+			"timestamps" : shots,
+			"frames" : self.shots
+		}
+
+
+	def get_key_frames(self):
+		frame_time_stamps = [i/self.fps for i in self.key_frames]
+		return {
+			"timestamps" : frame_time_stamps,
+		}
+
+
 	# index == scene; corresponding list == shot indexes
 	def get_scenes(self):
 		self.group_into_scenes()
@@ -165,16 +177,12 @@ class DetectShots():
 		return self.scenes
 
 
-	def save(self):
-		self.save_key_frames()
-	
-
 	def get_average_shot_length(self):
 		self.avg_shot_length = []
 		tot_scene = len(self.scenes)
 		for i in range(0, tot_scene):
 			l, cnt = 0, 0
-			for ob in self.scene[i]:
+			for ob in self.scenes[i]:
 				pre = 0 if ob == 0 else self.shots[ob-1]
 				l += (self.shots[ob] - pre)
 				cnt += 1
@@ -193,6 +201,22 @@ class DetectShots():
 		return self.shot_cut_freq
 
 
+	def save_key_frames(self):
+		frame_list = []
+		for fr in self.key_frames:
+			self.file.set(1, fr-1)
+			fr = np.array(self.file.read()[1])
+			fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+			frame_list.append(fr)
+
+		self.out = ImageSequenceClip(frame_list, fps=1)			
+		self.out.write_videofile('[FabBits] '+self.filename, codec='libx264')
+
+
+	def save(self):
+		self.save_key_frames()
+
+
 if __name__ == '__main__':
 
 	import sys, os
@@ -202,20 +226,24 @@ if __name__ == '__main__':
 		sys.exit()
 
 	op = DetectShots(file)
+	op.process()
 	shots = op.get_shots()
 	
-	with open('shot_boundaries_of_'+file+'.txt', 'w') as f:
+	with open('shot_boundaries_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
 		f.write(str(shots["timestamps"]))
 		
-	key_frames = op.get_key_frames()
-	with open('key_frames_of_'+file+'.txt', 'w') as f:
-		f.write(str(key_frames["timestamps"]))
+	# key_frames = op.get_key_frames()
+	# with open('key_frames_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+	# 	f.write(str(key_frames["timestamps"]))
 
 	# fr_diff = op.get_frame_differences()
 	# with open('frame_diff_of_'+file+'.txt', 'w') as f:
 	# 	f.write(str(fr_diff))
 
 	# op.group_into_scenes()
-	print(op.get_scenes())
+	with open('scenes_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(op.get_scenes()))
 
-	op.save()
+	print(op.get_average_shot_length())
+	print(op.get_shot_cut_freq())
+	# op.save()

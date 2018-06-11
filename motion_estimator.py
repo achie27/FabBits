@@ -1,75 +1,25 @@
+"""
+	Archit Mathur
+	github.com/achie27
+	architmathur2011@gmail.com
+
+	Module for estimating motion using optical flow
+	Last updated - 10/06/2018
+
+"""
+
 import cv2
-# import threading
 import numpy as np
-# cap = cv2.VideoCapture("gsoc_data/s1.avi")
-# ret, frame1 = cap.read()
-# frame1 = cv2.resize(frame1, (100, 100))
-# prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
-# # hsv = np.zeros_like(frame1)
-# frames = []
-# # hsv[...,1] = 255
-# i=0
-# while(1):
-#     ret, frame2 = cap.read()
-#     if not ret :
-#     	break
-#     print(i)
-#     frame2 = cv2.resize(frame2, (100, 100))
-#     nxt = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
-#     # frames.append(nxt)
-#     flow = np.array(cv2.calcOpticalFlowFarneback(prvs,nxt, None, 0.5, 3, 15, 3, 5, 1.2, 0))
-#     # mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
-#     # hsv[...,0] = ang*180/np.pi/2
-#     # hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-#     # bgr = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
-#     # cv2.imshow('fsrame2',bgr)
-#     # k = cv2.waitKey(30) & 0xff
-#     # if k == 27:
-#     #     break
-#     # elif k == ord('s'):
-#     #     cv2.imwrite('opticalfb.png',frame2)
-#     #     cv2.imwrite('opticalhsv.png',bgr)
-#     prvs = nxt
-#     i+=1
-
-# def process(m, n):
-#     i = m + 1
-#     while i <= n :
-#         flow = cv2.calcOpticalFlowFarneback(
-#             frames[i-1], frames[i], None, 0.5, 3, 15, 3, 5, 1.2, 0
-#         )
-#         i+=1
-
-
-# class TheThread(threading.Thread):
-#     def __init__(self, name, f):
-#         super().__init__()
-#         self.f = f
-#         self.name = name
-
-#     def run(self):
-#         print("started "+self.name)
-#         self.f()
-#         print(self.name+" boi is done")
-
-
-# l = len(frames)
-# opflow = [0]*l
-# t1 = TheThread("1", lambda : process(0, l//2))
-# t2 = TheThread("2", lambda : process(l//2+1, l))
-# t1.start()
-# t2.start()
-# print("oya")
-# t1.join()
-# t2.join()
-# print("owari da")
+from helpers import HelperThread
 
 class MotionEstimator():
 	def __init__(self, file_path, shots, scenes):
+		self.file_path = file_path
 		self.file = cv2.VideoCapture(file_path)
 		self.shots, self.scenes = np.array(shots), scenes
 		self.scene_motion_intensity = []
 		self.scene_camera_motion = []
+		self.total_frames = 0
 
 	def get_motion_intensity(self):
 		return self.scene_motion_intensity
@@ -77,51 +27,64 @@ class MotionEstimator():
 	def get_camera_motion(self):
 		return self.scene_camera_motion
 
+
 	def process(self):
-		cur_scene = 0
-		frame_count = 0
-		camera_motion_frames = 0
-		motion_intensity = 0
+		tot_scenes = len(self.scenes)
+		self.scene_motion_intensity = [0]*tot_scenes
+		self.scene_camera_motion = [0]*tot_scenes
 
-		suc, pre = self.file.read()
-		if not suc : 
-			pass
+		tmp_file1 = cv2.VideoCapture(self.file_path)
+		tmp_file2 = cv2.VideoCapture(self.file_path)
 
-		pre = cv2.resize(pre, (100, 100))
-		pre = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
+		f1 = lambda : self.estimate(0, tot_scenes//3, self.file)
+		f2 = lambda : self.estimate(tot_scenes//3, 2*tot_scenes//3, tmp_file1)
+		f3 = lambda : self.estimate(2*tot_scenes//3, tot_scenes, tmp_file2)
 
-		while 1:
-			if frame_count > self.shots[self.scenes[cur_scene][-1]]:
-				print(frame_count)
-				print(cur_scene)
-				print(self.scenes[cur_scene][-1])
-				print(self.shots[self.scenes[cur_scene][-1]])
+		t1 = HelperThread("1", f1)
+		t2 = HelperThread("2", f2)
+		t3 = HelperThread("3", f3)
 
-				self.scene_motion_intensity.append(motion_intensity)
-				self.scene_camera_motion.append(camera_motion_frames)
+		t1.start(), t2.start(), t3.start()
+		t1.join(), t2.join(), t3.join()
 
-				cur_scene += 1
-				camera_motion_frames = 0
-				motion_intensity = 0
+		tmp_file2.release()
+		tmp_file1.release()
 
-			if cur_scene >= len(self.scenes):
-				break
 
-			suc, nxt = self.file.read()
-			if not suc :
-				break
+	def estimate(self, st, end, file):
+		for i in range(st, end):
+			camera_motion_frames = 0
+			motion_intensity = 0
 
-			nxt = cv2.resize(nxt, (100, 100))
-			nxt = cv2.cvtColor(nxt, cv2.COLOR_BGR2GRAY)
-			
-			flow = cv2.calcOpticalFlowFarneback(
-				pre, nxt, None, 0.5, 3, 15, 3, 5, 1.2, 0
-			)
+			for j in range(0, len(self.scenes[i])):
+				prev_shot_bound = 0 if self.scenes[i][j]==0 else self.shots[self.scenes[i][j]-1]
+				curr_shot_bound = self.shots[self.scenes[i][j]]			
+				
+				curr_frame = prev_shot_bound
 
-			if (flow==0).sum() < 1000 :	#less than 10%
-				camera_motion_frames += 1
+				file.set(1, prev_shot_bound)
+				suc, pre = file.read()
+				if not suc : pass
 
-			motion_intensity += np.sum(np.abs(flow))
+				pre = cv2.resize(pre, (100, 100))
+				pre = cv2.cvtColor(pre, cv2.COLOR_BGR2GRAY)
 
-			frame_count += 1
-	
+				while curr_frame < curr_shot_bound:
+					suc, nxt = file.read()
+					if not suc : break
+
+					nxt = cv2.resize(nxt, (100, 100))
+					nxt = cv2.cvtColor(nxt, cv2.COLOR_BGR2GRAY)
+
+					flow = cv2.calcOpticalFlowFarneback(
+						pre, nxt, None, 0.5, 3, 15, 3, 5, 1.2, 0
+					)
+
+					if (flow == 0).sum() < 1000 :
+						camera_motion_frames += 1
+
+					motion_intensity += np.sum(np.abs(flow))
+					curr_frame += 1
+
+			self.scene_motion_intensity[i] = motion_intensity
+			self.scene_camera_motion[i] = camera_motion_frames
