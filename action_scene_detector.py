@@ -12,9 +12,10 @@
 
 import pickle 
 import numpy as np
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+
 from shot_detector import DetectShots
 from motion_estimator import MotionEstimator
-from moviepy.editor import VideoFileClip, concatenate_videoclips
 from helpers import HelperThread
 
 

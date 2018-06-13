@@ -88,3 +88,11 @@ class MotionEstimator():
 
 			self.scene_motion_intensity[i] = motion_intensity
 			self.scene_camera_motion[i] = camera_motion_frames
+
+		self.scene_motion_intensity=np.array(self.scene_motion_intensity)
+		mx = self.scene_motion_intensity.max()
+		self.scene_motion_intensity=self.scene_motion_intensity/mx
+
+		self.scene_camera_motion = np.array(self.scene_camera_motion)
+		mx = self.scene_camera_motion.max()
+		self.scene_camera_motion = self.scene_camera_motion / mx
