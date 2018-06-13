@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Module for laughter detection from sitcoms
-	Last updated - 10/06/2018
+	Last updated - 13/06/2018
 
 """
 
@@ -24,9 +24,9 @@ class LaughDetector():
 
 		duration = int(self.file.duration)
 		self.file = self.file.set_duration(duration)
-		self.file = self.file.resize((320, 240))
 		file_audio = self.file.audio
 
+		# 10ms average ridiculously speeds this up 
 		ten_ms_avg = lambda i, f: np.sqrt((f.subclip(i, i+0.01).to_soundarray()**2).mean()) 
 		sig = [ten_ms_avg(i, file_audio) for i in np.arange(0.0, duration//1, 0.01)]
 
@@ -39,9 +39,11 @@ class LaughDetector():
 		hil_sig = signal.hilbert(sig)
 		sig_env = np.abs(hil_sig)
 
+		# normalizing it
 		avg = np.mean(sig_env)
 		norm_env = [i/avg for i in sig_env]
 
+		# smoothing the signal
 		b, a = signal.butter(3, 0.05)
 		smooth_env = signal.filtfilt(b, a, norm_env)
 
@@ -49,20 +51,31 @@ class LaughDetector():
 		high = 1.8
 		low = 0.45
 
-		self.timestamps, clip, offset, i = [{'s':0, 'e':0}], 0, 0, 0
+		self.timestamps, i = [{'s':0, 'e':0}], 0
+
+		# the structure of laugh tracks is high at the beginning and
+		# low at the end while gradually dying down in b/w
 		while i < sig_len:
 			if smooth_env[i] >= high :
 				
+				#merge if the previous joke is just 5s apart
 				if self.timestamps[-1]['e'] >= t[i]-5:
 					self.timestamps[-1]['e'] = np.min([t[i]+4, duration])
+
+				# add new joke otherwise
 				else :
+
 					# adding 4 second buffers
 					self.timestamps.append({
 						's' : np.max([0, t[i]-4]),
 						'e' : np.min([t[i]+4, duration])
 					})
 					
+				# find the end of the joke
 				while i < sig_len and smooth_env[i] >= low:
+
+					# less buffer because theres usually not much to
+					# the joke once the laughter has stopped
 					self.timestamps[-1]['e'] = np.min([t[i]+2, duration])
 					i+=1
 
@@ -98,5 +111,5 @@ if __name__ == "__main__":
 	op = LaughDetector(file)
 	op.process()
 	laughs = op.get_laughs()
-	print(laughs)
+	print(laughs)	#do whatever
 	op.save()

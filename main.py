@@ -4,7 +4,7 @@
 	architmathur2011@gmail.com
 
 	Where it all starts!
-	Last updated - 10/06/2018
+	Last updated - 13/06/2018
 
 """
 
@@ -39,6 +39,8 @@ class Main(QWidget):
 		]
 		self.current_use_case = ""
 
+		# methods that should be called for
+		# finding each use case
 		self.processors = {
 			"MOVIES" : [
 				self.jokes_detector, 
@@ -54,18 +56,24 @@ class Main(QWidget):
 			]
 		}
 
-		self.fabbit = {}
+		# the object of current use-case's class
+		self.fabbit = 0
 
 		self.width, self.height = 750, 475
 		self.create_gui()
 
 
 	def create_gui(self):
+		"""
+		Yep, creates the GUI.
+
+		"""
 
 		total_cats = len(self.categories)
 		btn_height, btn_width = 70, self.width/total_cats
 		self.btns = [0]*total_cats
 		
+		# add the category - movies and sports - buttons
 		for i in range(0, total_cats):
 			self.btns[i] = QPushButton(self.categories[i], self)
 			self.btns[i].clicked.connect(self.update_list)
@@ -73,11 +81,13 @@ class Main(QWidget):
 				i*btn_width, 0, btn_width, btn_height
 			) 
 
+		# add the side bar that containes use-cases
 		list_width, list_height = 200, 300
 		self.list = QListWidget(self)
 		self.list.clicked.connect(self.process_use_case)
 		self.list.setGeometry(0, btn_height, list_width, list_height)
 
+		# add more buttons
 		self.file_btn = QPushButton("Choose file", self)
 		self.file_btn.clicked.connect(self.set_file)
 		self.file_btn.setGeometry(
@@ -103,6 +113,7 @@ class Main(QWidget):
 			op_btn_width, op_btn_height
 		)
 
+		#placeholders for now
 		placeholder1 = QLabel("Status bar here soon!", self)
 		placeholder1.setAlignment(QtCore.Qt.AlignCenter)
 		placeholder1.setGeometry(
@@ -127,6 +138,12 @@ class Main(QWidget):
 
 
 	def update_list(self, cat):
+		"""
+		Sets the chosen category and updates the corresponding
+		use-cases in the side bar.
+
+		"""
+
 		self.list.clear()
 
 		if cat :
@@ -140,17 +157,28 @@ class Main(QWidget):
 			obj.id = id
 			id+=1
 
-
 	def process_use_case(self):
+		"""
+		Sets the chosen use-case and acts as an intermediary
+
+		"""
+
 		self.current_use_case = self.sender().currentItem().id
+
 		# TODO - popup window for use cases that need extra info
+		#		like actor specific scenes to ask for actor name
+		pass
 
 
 	def find_fabbits(self):
+		"""
+		Finds the use-case.
+
+		"""
 		cat = self.current_cat
 		use_case = self.current_use_case
 		f = lambda : self.processors[cat][use_case]()
-		thread = HelperThread("1", f)
+		thread = HelperThread("Finding FabBit 1", f)
 		thread.start()
 
 
@@ -179,13 +207,16 @@ class Main(QWidget):
 
 
 	def save_fabbits(self):
-		thread = HelperThread("2", self.fabbit.save)
+		thread = HelperThread("Saving 1", self.fabbit.save)
 		thread.start()
-		thread.join()
-		print("saved them!")
 
 
 	def set_file(self):
+		"""
+		For file dialog to get input video
+
+		"""
+
 		self.file = QFileDialog.getOpenFileName(
 			self, 'Open file', '/home'
 		)
@@ -197,6 +228,8 @@ class Main(QWidget):
 		print("loaded "+ self.filename)
 
 
-app = QApplication(sys.argv)
-win = Main()
-sys.exit(app.exec_())
+if __name__ == '__main__':
+
+	app = QApplication(sys.argv)
+	win = Main()
+	sys.exit(app.exec_())
