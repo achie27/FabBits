@@ -12,13 +12,14 @@
 
 import cv2
 import numpy as np 
+import multiprocessing as mp
 from helpers import search, HelperThread
 from moviepy.editor import ImageSequenceClip
 
 class DetectShots():
 	def __init__(self, file_path):
 		self.frame_diff_interval, self.total_pixels = 10, 320*240 
-		self.shot_similarity_threshold, self.abrupt_trans_cnt = 0.3, 8
+		self.shot_similarity_threshold, self.abrupt_trans_cnt = 3, 8
 		self.upper_bound, self.lower_bound,  = 0.45, 0.25
 
 		self.hist, self.fd, self.shots, = [], [], []
@@ -31,7 +32,7 @@ class DetectShots():
 		self.file = cv2.VideoCapture(file_path)
 		self.filename = file_path[file_path.rfind('/')+1:]
 		self.fps = self.file.get(cv2.CAP_PROP_FPS)
-		self.T = int(self.fps * 300)
+		self.T = int(self.fps * 150)	#2.5min
 
 
 	def multithreaded_fd_calc(self):
@@ -67,6 +68,7 @@ class DetectShots():
 		a.join(), b.join(), c.join()
 
 		tmp_file2.release(), tmp_file1.release()
+
 
 
 	def calc_frame_diff(self, st, end, file):
@@ -157,34 +159,46 @@ class DetectShots():
 
 
 	def find_key_frames(self):
-		"""
-		Finds "key" frames used to represent a shot
 
-		"""
+		self.key_frames = []
+		
+		with mp.Pool(4) as p:
 
-		# taking the middle one works
-		for i in range(0, self.total_shots):
-			pre = 0 if i == 0 else self.shots[i-1]
-			self.key_frames.append((self.shots[i]+pre)//2)
+			args = [self.shots, self.hist, self.total_pixels]
+
+			a=p.apply_async(
+				find, 
+				args=(
+					*args, 0, self.total_shots//2, 1, self.fps, 
+				)
+			)
+
+			b=p.apply_async(
+				find, 
+				args=(
+					*args, self.total_shots//2, self.total_shots, 2, self.fps, 
+				)
+			)
+			
+			p.close()
+			p.join()
+
+		self.key_frames = a.get() + b.get()
 
 
 	def group_into_scenes(self):
-		"""
-		Groups shots into scenes.
-
-		"""
-
-		# will contain histogram differences b/w key frames of shots
 		D = []
 
 		for i in range(0, self.total_shots):
+			lim, j = self.key_frames[i][0] + self.T, i+1
+			while j < self.total_shots and self.key_frames[j][0] <= lim:
+				tmp = np.array([[0]*256]).reshape((256, 1))
+				for i_key_frame in self.key_frames[i]:
+					for j_key_frame in self.key_frames[j]:
+						x = np.abs(self.hist[i_key_frame] - self.hist[j_key_frame])
+						tmp = tmp + x
 
-			# only shots that are 5min of each other can be considered
-			# to be part of the same scene; hence lim
-			lim, j = self.key_frames[i] + self.T, i+1
-
-			while j < self.total_shots and self.key_frames[j] <= lim:
-				tmp = np.sum(np.abs(self.hist[j] - self.hist[i])/(2*self.total_pixels))
+				tmp = np.sum(tmp) / (2*self.total_pixels)
 				D.append({
 					'f1' : i,
 					'f2' : j,
@@ -192,11 +206,7 @@ class DetectShots():
 				})
 				j+=1
 
-		# index is shot no.; the value would be shot of the same scene
 		self.shot_scene = [i for i in range(0, self.total_shots)]
-
-		# shots with histogram diff less than a threshold belong to
-		# the same scene
 		D.sort(key = lambda o : o["fd"])
 		for ob in D:
 			if ob['fd'] > self.shot_similarity_threshold:
@@ -204,8 +214,6 @@ class DetectShots():
 			self.shot_scene[ob['f1']] = ob['f1']
 			self.shot_scene[ob['f2']] = ob['f1']
 
-		# using self.shot_scene as a union find data structure
-		# and finding a "root" shot for each scene
 		def path_compress(index, arr):
 			if arr[index] == index:
 				return 
@@ -213,73 +221,7 @@ class DetectShots():
 			arr[index] = arr[arr[index]]
 
 		for i in range(0, self.total_shots):
-			path_compress(i, self.shot_scene)
-
-
-	# def find_key_frames_v2(self):
-	# 	threshold = 0.15
-	# 	self.key_frames = [0]*self.total_shots
-
-	# 	def find(self, s, e):
-	# 		for i in range(s, e):
-	# 			print(i)
-	# 			pre = 0 if i == 0 else self.shots[i-1]
-	# 			self.key_frames[i]=[(self.shots[i]+pre)//2]
-	# 			for fr in range(pre, self.shots[i]):
-	# 				flag = 1
-	# 				for kfr in self.key_frames[i]:
-	# 					dif = np.sum(np.abs(self.hist[kfr] - self.hist[fr]))/2*self.total_pixels
-	# 					if dif < threshold : flag = 0
-
-	# 				if flag == 1 : self.key_frames[i].append(fr)
-
-	# 	a = lambda : find(self, 0, self.total_shots//2)
-	# 	b = lambda : find(self, self.total_shots//2, self.total_shots)
-
-	# 	t1 = HelperThread("1", a)
-	# 	t2 = HelperThread("2", b)
-	# 	t1.start(), t2.start()
-	# 	t2.join(), t1.join()
-
-
-	# def group_into_scenes_v2(self):
-	# 	D, avg_hist = [], []
-
-	# 	for i in range(0, self.total_shots):
-	# 		avg = self.key_frames[i][0]
-	# 		for j in range(1, len(self.key_frames[i])):
-	# 			avg += self.key_frames[i][j]
-
-	# 		avg = avg/len(self.key_frames[i])
-	# 		avg_hist.append(avg)
-
-	# 	for i in range(0, self.total_shots):
-	# 		lim, j = self.key_frames[i][0] + self.T, i+1
-	# 		while j < self.total_shots and self.key_frames[j][0] <= lim:
-	# 			tmp = np.sum(np.abs(avg_hist[j] - avg_hist[i])/(2*self.total_pixels))
-	# 			D.append({
-	# 				'f1' : i,
-	# 				'f2' : j,
-	# 				'fd' : tmp 
-	# 			})
-	# 			j+=1
-
-	# 	self.shot_scene = [i for i in range(0, self.total_shots)]
-	# 	D.sort(key = lambda o : o["fd"])
-	# 	for ob in D:
-	# 		if ob['fd'] > self.shot_similarity_threshold:
-	# 			break
-	# 		self.shot_scene[ob['f1']] = ob['f1']
-	# 		self.shot_scene[ob['f2']] = ob['f1']
-
-	# 	def path_compress(index, arr):
-	# 		if arr[index] == index:
-	# 			return 
-	# 		path_compress(arr[index], arr)
-	# 		arr[index] = arr[arr[index]]
-
-	# 	for i in range(0, self.total_shots):
-	# 		path_compress(i, self.shot_scene)		
+			path_compress(i, self.shot_scene)		
 
 
 	def process(self):
@@ -302,14 +244,17 @@ class DetectShots():
 			"frames" : self.shots
 		}
 
-
 	def get_key_frames(self):
-		frame_time_stamps = [i/self.fps for i in self.key_frames]
+		frame_time_stamps = []
+		for shot in self.key_frames:
+			frame_time_stamps.append([])
+			for key_frame in shot:
+				frame_time_stamps[-1].append(key_frame/self.fps)
+
 		return {
 			"timestamps" : frame_time_stamps,
 			"frames" : self.key_frames
-		}
-
+		} 
 
 	def get_scenes(self):
 		self.scenes = [[] for i in range(0, self.total_shots)]
@@ -339,10 +284,9 @@ class DetectShots():
 				cnt += 1
 			
 			l = l/cnt
-			mx = max(mx, l)
 			self.avg_shot_length.append(l)
 
-		return np.array(self.avg_shot_length)/mx
+		return np.array(self.avg_shot_length)
 
 
 	def get_shot_cut_freq(self):
@@ -355,11 +299,12 @@ class DetectShots():
 
 	def save_key_frames(self):
 		frame_list = []
-		for fr in self.key_frames:
-			self.file.set(1, fr-1)
-			fr = np.array(self.file.read()[1])
-			fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
-			frame_list.append(fr)
+		for shot in self.key_frames:
+			for fr in shot:
+				self.file.set(1, fr-1)
+				fr = np.array(self.file.read()[1])
+				fr = cv2.cvtColor(fr, cv2.COLOR_BGR2RGB)
+				frame_list.append(fr)
 
 		self.out = ImageSequenceClip(frame_list, fps=1)			
 		self.out.write_videofile('[FabBits] '+self.filename, codec='libx264')
@@ -367,6 +312,34 @@ class DetectShots():
 
 	def save(self):
 		self.save_key_frames()
+
+
+# can't be a class method since it is getting multiprocessed
+# multiprocessing requires all the arguments to be pickle-able
+# self.file, opencv's VideoCapture object, is not pickleable
+def find(shots, hist, total_pixels, s, e, idn, fps):
+	threshold = 0.4
+	transition_offset = 30 #frames
+	key_frames = [0]*(e-s)
+	print(str(idn)+" has begun")
+	for i in range(s, e):
+		pre = 0 if i == 0 else shots[i-1]
+		key_frames[i-s]=[pre+transition_offset]
+		for fr in range(pre+transition_offset+1, shots[i]):
+			flag = 1
+			for kfr in key_frames[i-s]:
+				dif = np.sum(np.abs(hist[kfr] - hist[fr]))/(2*total_pixels)
+				if dif < threshold : flag = 0
+
+			# different and 4 seconds apart
+			if flag == 1 and (fr - key_frames[i-s][-1]) > 4*fps: 
+				key_frames[i-s].append(fr)
+		
+		print(i)
+	
+	print(str(idn) + " is done")
+	return(key_frames)
+
 
 
 if __name__ == '__main__':
@@ -383,14 +356,18 @@ if __name__ == '__main__':
 	
 	with open('shot_boundaries_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
 		f.write(str(shots["timestamps"]))
-		
-	# key_frames = op.get_key_frames()
-	# with open('key_frames_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
-	# 	f.write(str(key_frames["timestamps"]))
+			
+	key_frames = op.get_key_frames()
+	with open('key_frames_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(key_frames["timestamps"]))
 
 	with open('scenes_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
 		f.write(str(op.get_scenes()))
 
-	print(op.get_average_shot_length())
-	print(op.get_shot_cut_freq())
+	with open('shot_lengths_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(op.get_average_shot_length()))
+
+	with open('shot_cut_freq_of_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(op.get_shot_cut_freq()))
+
 	op.save()

@@ -23,7 +23,7 @@ class DetectAction():
 	def __init__(self, file_path, clf_pickle="classifier.pkl"):
 		super().__init__()
 		self.file = VideoFileClip(file_path)
-		self.file = self.file.resize((240, 320))
+		self.file = self.file.resize((320, 240))
 		self.file_path = file_path
 		self.filename = file_path[file_path.rfind('/')+1:]
 		

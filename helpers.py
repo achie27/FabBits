@@ -8,9 +8,9 @@
 
 """
 
-import threading
+from threading import Thread
 
-class HelperThread(threading.Thread):
+class HelperThread(Thread):
 	def __init__(self, name, f):
 		super().__init__()
 		self.name = name
