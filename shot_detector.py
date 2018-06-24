@@ -35,6 +35,40 @@ class DetectShots():
 		self.T = int(self.fps * 150)	#2.5min
 
 
+	# def multiprocessed_fd_calc(self):
+
+	# 	self.total_frames = int(self.file.get(cv2.CAP_PROP_FRAME_COUNT))
+	# 	with mp.Pool(4) as p:
+	# 		a = p.apply_async(
+	# 			calc_frame_diff_v2,
+	# 			args=(1, self.total_frames//4, self.file_path, self.frame_diff_interval, 1, self.total_pixels)
+	# 		)
+
+	# 		b = p.apply_async(
+	# 			calc_frame_diff_v2,
+	# 			args=(self.total_frames//4, self.total_frames//2, self.file_path, self.frame_diff_interval, 2, self.total_pixels)
+	# 		)
+
+	# 		c = p.apply_async(
+	# 			calc_frame_diff_v2,
+	# 			args=(self.total_frames//2, 3*self.total_frames//4, self.file_path, self.frame_diff_interval, 3, self.total_pixels)
+	# 		)
+
+	# 		d = p.apply_async(
+	# 			calc_frame_diff_v2,
+	# 			args=(3*self.total_frames//4, self.total_frames, self.file_path, self.frame_diff_interval, 4, self.total_pixels)
+	# 		)
+
+	# 		p.close()
+	# 		p.join()
+
+	# 	print("its done")
+	# 	res1, res2, res3, res4 = a.get(), b.get(), c.get(), d.get()
+	# 	self.fd = res1["fd"] + res2["fd"] + res3["fd"] + res4["fd"]
+	# 	self.hist = res1["hist"] + res2["hist"] + res3["hist"] + res4["hist"]
+
+
+
 	def multithreaded_fd_calc(self):
 		"""
 		Creates threads and file pointers for multithreading frame
@@ -70,7 +104,7 @@ class DetectShots():
 		tmp_file2.release(), tmp_file1.release()
 
 
-
+	
 	def calc_frame_diff(self, st, end, file):
 		"""
 		Calculates the histogram difference between frames 
@@ -314,6 +348,61 @@ class DetectShots():
 		self.save_key_frames()
 
 
+# def calc_frame_diff_v2(st, end, file_path, fd_interval, idn, total_pixels):
+# 	"""
+# 	Calculates the histogram difference between frames 
+# 	self.frame_diff_interval apart. Helps detect shot boundaries.
+
+# 	"""
+
+# 	print(str(idn) +" has begun")
+
+# 	file = cv2.VideoCapture(file_path)
+	
+# 	# set the opencv file pointer to read frame no st next
+# 	file.set(1, st-1)
+
+# 	frame_diff = [0]*(end-st)
+# 	hist = [0]*(end-st)
+
+# 	counter = max(0, st-1)
+
+# 	# iterate for the entire range of frames (st, end)
+# 	while file.isOpened() and counter < end:
+# 		suc, fr = file.read()
+# 		if not suc : 
+# 			break
+
+# 		fr = cv2.resize(fr, (320, 240))
+# 		gray_fr = cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY)
+
+# 		# the frame's histogram
+# 		hist_fr = cv2.calcHist(
+# 			[gray_fr], [0], None, [256], [0, 256]
+# 		)
+
+# 		# save the histogram/frame diff -
+# 		# calculating it for frames self.frame_diff_interval apart
+# 		# helps detect both gradual and abrupt transitions
+# 		if counter >= fd_interval :
+# 			tmp = np.abs(
+# 				hist_fr-hist[counter-fd_interval-st]
+# 			)
+# 			fd = np.sum(tmp)/(2*total_pixels)
+# 			frame_diff[counter-fd_interval-st] = fd
+			
+# 		# save the histogram
+# 		hist[counter-st] = hist_fr
+# 		counter+=1
+
+# 	print(str(idn) +" has ended")
+
+# 	return {
+# 		"hist" : hist,
+# 		"fd" : frame_diff
+# 	}
+
+
 # can't be a class method since it is getting multiprocessed
 # multiprocessing requires all the arguments to be pickle-able
 # self.file, opencv's VideoCapture object, is not pickleable
@@ -321,7 +410,7 @@ def find(shots, hist, total_pixels, s, e, idn, fps):
 	threshold = 0.4
 	transition_offset = 30 #frames
 	key_frames = [0]*(e-s)
-	print(str(idn)+" has begun")
+	print(str(idn)+" has begun - find")
 	for i in range(s, e):
 		pre = 0 if i == 0 else shots[i-1]
 		key_frames[i-s]=[pre+transition_offset]

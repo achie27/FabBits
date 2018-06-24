@@ -62,9 +62,14 @@ class DetectAction():
 				[mo_int[i], cam_mo[i], shot_len[i], shot_cut[i]]
 			)
 
+		features = np.array(features)
+		for i in range(0, 4):
+			features[:, i]=(features[:, i]-features[:, i].mean())/(features[:, i].max()-features[:, i].min())
+
+
 		# get the verdict; 1 means the feature vector represents
 		# an action sequence or 0 othwerwise means its not
-		decision = self.clf.predict(np.array(features))
+		decision = self.clf.predict(features)
 
 
 		# aggregate all the shots of action scenes

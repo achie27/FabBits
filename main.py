@@ -9,7 +9,6 @@
 """
 
 import os, sys
-import threading
 from PyQt5.QtWidgets import \
 	QApplication, QMainWindow, QPushButton, QWidget, QListWidget,\
 	QListWidgetItem, QFileDialog, QLabel

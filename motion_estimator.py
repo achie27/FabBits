@@ -113,3 +113,16 @@ class MotionEstimator():
 	
 		self.scene_motion_intensity=np.array(self.scene_motion_intensity)
 		self.scene_camera_motion = np.array(self.scene_camera_motion)
+
+
+if __name__ == '__main__':
+	import sys
+
+	x = MotionEstimator(sys.argv[1])
+	x.process()		
+
+	with open('motion_intensity_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(op.get_motion_intensity()))
+
+	with open('camera_motion_'+file[file.rfind('/')+1:]+'.txt', 'w') as f:
+		f.write(str(op.get_camera_motion()))
