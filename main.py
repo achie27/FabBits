@@ -17,6 +17,7 @@ from PyQt5 import QtCore
 from laugh_detector import LaughDetector
 from shot_detector import DetectShots
 from action_scene_detector import DetectAction
+from goal_detector import DetectGoal
 from helpers import HelperThread
 
 class Main(QWidget):
@@ -48,7 +49,7 @@ class Main(QWidget):
 				0
 			],
 			"SPORTS" : [
-				0,
+				self.goal_detector,
 				0,
 				0,
 				0
@@ -202,6 +203,14 @@ class Main(QWidget):
 		action = DetectAction(self.file)
 		action.process()
 		self.fabbit = action
+		print("done processing fabbits for "+self.file)
+
+
+	def goal_detector(self):
+		print("processing")
+		goals = DetectGoal(self.file)
+		goals.process()
+		self.fabbit = goals
 		print("done processing fabbits for "+self.file)
 
 

@@ -41,11 +41,6 @@ class DetectGoal():
 			ed = cv2.Sobel(fr, cv2.CV_8U, 1, 0, ksize=3)
 			bl = cv2.blur(ed, (5, 5))
 			th_val, th = cv2.threshold(bl, 0, 255, cv2.THRESH_OTSU+cv2.THRESH_BINARY)
-			# th_sum = (th == 255).sum()
-
-			# if th_sum <= min_thres:
-			# 	min_thres = th_sum
-			# 	min_thres_frame = l
 			data.append({
 				"fr" : l,
 				"val" : (th==255).sum()
@@ -54,7 +49,8 @@ class DetectGoal():
 
 		data.sort(key = lambda ob : ob["val"])
 		min_thres_frame = data[0]['fr']
-		print(min_thres_frame, min_thres)
+		del data
+
 		self.file.set(1, min_thres_frame)
 		sc = self.file.read()[1]
 		fr = cv2.cvtColor(sc, cv2.COLOR_BGR2GRAY)
@@ -87,7 +83,8 @@ class DetectGoal():
 
 		x1, x2 = bb[0][0][0], bb[0][2][0]
 		y1, y2 = bb[0][0][1], bb[0][2][1]
-
+		del contour
+		del bb
 
 		self.file.set(1, min_thres_frame+self.fps)
 		nfr = self.file.read()[1]
@@ -127,7 +124,9 @@ class DetectGoal():
 			goals = nfr[:, :far_left]
 			right = False		
 
-		print("secluded time")
+		del bbox
+
+		print("secluded timer")
 
 		edge_content = (cv2.Sobel(goals, cv2.CV_8U, 1, 0, ksize=3)).sum()
 
@@ -151,7 +150,6 @@ class DetectGoal():
 			sim, img = self.compare_ssim(goals, cr, full=True)
 			
 			if sim >= 0.8:
-				print(q)
 				break
 
 		print("found initial scoreboard")
@@ -200,14 +198,12 @@ class DetectGoal():
 
 				pfr = cr.copy()
 
-		print(len(l))
 		g = [self.compare_ssim(l[i][0], l[i+1][0], full=True)[0] for i in range(0, len(l)-1)]
 		goal = []
 		for i in range(len(g)):
 			if g[i] <= 0.875:
 				goal.append(l[i][1])
 
-		print(goal)
 		self.goals, i = [], 0
 		while True:
 			if i >= len(goal):
