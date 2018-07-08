@@ -69,8 +69,8 @@ class DetectGoal():
 
 
 		# area and aspect ratio of most scoreboards 		
-		ar_lim = 120*20
-		asp_lim = 120/20
+		ar_lim = 3000
+		asp_lim = 5.5
 
 		#finding item that could potentially be the scoreboard
 		bb = []
@@ -82,15 +82,15 @@ class DetectGoal():
 			if ar == 0:
 				continue
 			asp = np.abs((box[2][0]-box[0][0]) / (box[0][1] - box[2][1]))
-			c1 = ar <= ar_lim + 800 and ar >= ar_lim - 800
+			c1 = ar <= ar_lim + 1500 and ar >= ar_lim - 1000
 			c2 = asp <= asp_lim + 1.5 and asp >= asp_lim - 1.5
 				
 			if c1 and c2:
 				bb.append(box)
 
 		#corner points of the scoreboard
-		x1, x2 = bb[0][0][0], bb[0][2][0]
-		y1, y2 = bb[0][0][1], bb[0][2][1]
+		x1, x2 = min(bb[0][0][0], bb[0][2][0]), max(bb[0][0][0], bb[0][2][0]) 
+		y1, y2 = min(bb[0][0][1], bb[0][2][1]), max(bb[0][0][1], bb[0][2][1])
 		del contour
 		del bb
 
@@ -99,12 +99,12 @@ class DetectGoal():
 		nfr = self.file.read()[1]
 		nfr = cv2.cvtColor(nfr, cv2.COLOR_BGR2GRAY)
 		nfr = cv2.resize(nfr, (500, 500))
-		nfr = nfr[y2:y1, x1:x2]
+		nfr = nfr[y1:y2, x1:x2]
 
 		# comparing frames that are a second apart
 		# there difference will give the part of timer that changes
 		# allowing the removal of timer altogether
-		sim, img = self.compare_ssim(fr[y2:y1, x1:x2], nfr, full=True)
+		sim, img = self.compare_ssim(fr[y1:y2, x1:x2], nfr, full=True)
 		sb = img.copy()
 		for i in range(len(sb)):
 			for j in range(len(sb[i])):
@@ -122,9 +122,15 @@ class DetectGoal():
 			rec = cv2.minAreaRect(i)
 			box = cv2.boxPoints(rec)
 			box = np.int0(box)
-			bbox.append(box)
+			ar = np.abs((box[2][0]-box[0][0]) * (box[0][1] - box[2][1]))
+			if ar == 0:
+				continue
+			asp = np.abs((box[2][0]-box[0][0]) / (box[0][1] - box[2][1]))
+			c1 = ar <= 200 and ar >= 50
+			c2 = asp <= 0.6 and asp >= 0.25
 
-		bbox.sort(key = lambda o : -np.abs((o[2][0]-o[0][0]) * (o[0][1] - o[2][1])))		
+			if c1 and c2:
+				bbox.append(box)
 
 		# getting scoreboard area without the timer
 		far_right = max(bbox[0][:,0])
@@ -143,7 +149,6 @@ class DetectGoal():
 
 		# finding the edge content of scoreboard for later comparison
 		edge_content = (cv2.Sobel(goals, cv2.CV_8U, 1, 0, ksize=3)).sum()
-
 		self.file.set(1, 0)
 		q = 0
 
@@ -158,9 +163,9 @@ class DetectGoal():
 			fr = cv2.resize(fr, (500, 500))
 			
 			if right:
-				cr = fr[y2:y1, x1:x2][:, far_right:]
+				cr = fr[y1:y2, x1:x2][:, far_right:]
 			else:
-				cr = fr[y2:y1, x1:x2][:, :far_left]
+				cr = fr[y1:y2, x1:x2][:, :far_left]
 				
 			sim, img = self.compare_ssim(goals, cr, full=True)
 			
@@ -175,19 +180,18 @@ class DetectGoal():
 		a = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
 		a = cv2.resize(a, (500, 500))
 		if right:
-			a = a[y2:y1, x1:x2][:, far_right:]
+			a = a[y1:y2, x1:x2][:, far_right:]
 		else:
-			a = a[y2:y1, x1:x2][:, :far_left]
+			a = a[y1:y2, x1:x2][:, :far_left]
 			
 		ssim, d = self.compare_ssim(goals, a, full=True)    
-			
 		# saving frames that differ from each other by a threshold
 		pfr = self.file.read()[1]
 		pfr = cv2.resize(pfr, (500, 500))
 		if right:
-			pfr = pfr[y2:y1, x1:x2][:, far_right:]
+			pfr = pfr[y1:y2, x1:x2][:, far_right:]
 		else:
-			pfr = pfr[y2:y1, x1:x2][:, :far_left]
+			pfr = pfr[y1:y2, x1:x2][:, :far_left]
 
 		pfr = cv2.cvtColor(pfr, cv2.COLOR_BGR2GRAY)
 
@@ -202,9 +206,9 @@ class DetectGoal():
 			fr = cv2.resize(fr, (500, 500))
 			
 			if right:
-				cr = fr[y2:y1, x1:x2][:, far_right:]
+				cr = fr[y1:y2, x1:x2][:, far_right:]
 			else:
-				cr = fr[y2:y1, x1:x2][:, :far_left]
+				cr = fr[y1:y2, x1:x2][:, :far_left]
 			
 			e = cv2.Sobel(cr, cv2.CV_8U, 1, 0, ksize=3)
 			s = e.sum()
