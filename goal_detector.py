@@ -90,7 +90,7 @@ class DetectGoal():
 
 		#corner points of the scoreboard
 		x1, x2 = min(bb[0][0][0], bb[0][2][0]), max(bb[0][0][0], bb[0][2][0]) 
-		y1, y2 = min(bb[0][0][1], bb[0][2][1]), max(bb[0][0][1], bb[0][2][1])
+		y1, y2 = min(bb[0][0][1], bb[0][2][1])+5, max(bb[0][0][1], bb[0][2][1])-5
 		del contour
 		del bb
 
