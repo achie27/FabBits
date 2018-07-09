@@ -165,7 +165,7 @@ class DetectGoal():
 			if right:
 				cr = fr[y1:y2, x1:x2][:, far_right:]
 			else:
-				cr = fr[y1:y2, x1:x2][:, :far_left]
+				cr = fr[y1:y2, x1:x2][:, :far_left-20]
 				
 			sim, img = self.compare_ssim(goals, cr, full=True)
 			
