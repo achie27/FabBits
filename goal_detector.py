@@ -134,7 +134,7 @@ class DetectGoal():
 
 		# getting scoreboard area without the timer
 		far_right = max(bbox[0][:,0])
-		far_left = min(bbox[0][:,0])
+		far_left = min(bbox[0][:,0])-20
 		right = True
 
 		if far_right <= sb.shape[1]/2:
@@ -165,7 +165,7 @@ class DetectGoal():
 			if right:
 				cr = fr[y1:y2, x1:x2][:, far_right:]
 			else:
-				cr = fr[y1:y2, x1:x2][:, :far_left-20]
+				cr = fr[y1:y2, x1:x2][:, :far_left]
 				
 			sim, img = self.compare_ssim(goals, cr, full=True)
 			
