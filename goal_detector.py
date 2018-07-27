@@ -8,9 +8,9 @@
 
 """
 
+import cv2
 import pickle
 import numpy as np
-import cv2
 from matplotlib import pyplot as plt
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
@@ -249,12 +249,15 @@ class DetectGoal():
 			i+=1
 		
 
-	# get frames that are near a goal	
+		
 	def get_goals(self):
+		"""
+		Get frames that near a goal
+
+		"""
 		return self.goals
 
 
-	# save a video compilation
 	def save_goals(self):
 		goals = []
 		mp_file = VideoFileClip(self.file_path)
@@ -268,6 +271,10 @@ class DetectGoal():
 
 
 	def save(self):
+		"""
+		Save a video compilation
+
+		"""
 		self.save_goals()
 
 

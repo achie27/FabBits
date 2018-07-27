@@ -164,7 +164,7 @@ class DetectShots():
 
 			# naively checking for local maxima
 			# in diff_fd, x corresponds to x-1 
-			local_max=diff_fd[i-1]>diff_fd[i-2] and diff_fd[i-1]>diff_fd[i]
+			local_max=diff_fd[i+1] < 0 and diff_fd[i] > 0
 			
 			# if this FD is above a threshold and a local max, it
 			# corresponds to a gradual transition boundary
