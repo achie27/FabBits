@@ -15,7 +15,7 @@ from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import \
 	QApplication, QMainWindow, QPushButton, QWidget, QListWidget,\
-	QListWidgetItem, QFileDialog, QLabel, QSlider, QStyle
+	QListWidgetItem, QFileDialog, QLabel, QSlider, QStyle, QPlainTextEdit
 
 from laugh_detector import LaughDetector
 from shot_detector import DetectShots
@@ -116,35 +116,41 @@ class Main(QWidget):
 			op_btn_width, op_btn_height
 		)
 
-		#placeholders for now
-		placeholder1 = QLabel("Status bar here soon!", self)
-		placeholder1.setAlignment(QtCore.Qt.AlignCenter)
-		placeholder1.setGeometry(
+		self.status_bar = QPlainTextEdit(self)
+		self.status_bar.setReadOnly(True)
+		self.status_bar.setGeometry(
 			list_width, list_height+btn_height,
 			self.width - list_width - op_btn_width, 2*op_btn_height			
 		)
-		
-		# placeholder2 = QLabel("Video player here soon!", self)
-		# placeholder2.setAlignment(QtCore.Qt.AlignCenter)
-		# placeholder2.setGeometry(
-		# 	list_width, btn_height,
-		# 	self.width - list_width, 
-		# 	self.height-btn_height-2*op_btn_height			
-		# )
+
+
+		class StatusStream():
+			def __init__(self, textbox):
+				self.textbox = textbox
+
+			def write(self, text):
+				self.textbox.appendPlainText(text)
+
+			def flush(self):
+				self.textbox.clear()
+
+		sys.stdout = StatusStream(self.status_bar)
+
 
 		play_button_h, play_button_w = 30, 30
 
 		vw = QVideoWidget(self)
-		self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
-		self.media_player.setVideoOutput(vw)
-		self.media_player.stateChanged.connect(self.state_change)
-		self.media_player.positionChanged.connect(self.set_pos_player)
-		self.media_player.durationChanged.connect(self.set_duration)
 		vw.setGeometry(
 			list_width, btn_height,
 			self.width - list_width, 
 			self.height-btn_height-2*op_btn_height-play_button_h			
 		)
+		
+		self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
+		self.media_player.setVideoOutput(vw)
+		self.media_player.stateChanged.connect(self.state_change)
+		self.media_player.positionChanged.connect(self.set_pos_player)
+		self.media_player.durationChanged.connect(self.set_duration)
 
 		self.vid_button = QPushButton(self)
 		self.vid_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
