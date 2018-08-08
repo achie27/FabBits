@@ -160,7 +160,7 @@ class DetectShots():
 		diff_fd = np.diff(self.fd)
 
 		# iterate!
-		for i in range(2, self.total_frames):
+		for i in range(2, self.total_frames-2):
 
 			# naively checking for local maxima
 			# in diff_fd, x corresponds to x-1 

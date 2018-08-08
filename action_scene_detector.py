@@ -110,6 +110,14 @@ class DetectAction():
 		}
 
 
+	def get_timestamps(self):
+
+		return {
+			"timestamps" : self.action_timestamps,
+			"duration" : self.file.duration
+		}
+
+
 	def save_action_scenes(self):
 		self.action.write_videofile(
 			"[FabBits] "+self.filename, codec="libx264"

@@ -4,11 +4,21 @@
 	architmathur2011@gmail.com
 
 	Contains helper classes and functions
-	Last updated - 10/05/2018
+	Last updated - 07/08/2018
 
 """
 
 from threading import Thread
+
+class StatusStream():
+	def __init__(self, textbox):
+		self.textbox = textbox
+
+	def write(self, text):
+		self.textbox.appendPlainText(text)
+
+	def flush(self):
+		self.textbox.clear()
 
 class HelperThread(Thread):
 	def __init__(self, name, f):

@@ -9,19 +9,23 @@
 """
 
 import os, sys
+import pickle
+
 from PyQt5 import QtCore
 from PyQt5.QtGui import QIcon
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import \
 	QApplication, QMainWindow, QPushButton, QWidget, QListWidget,\
-	QListWidgetItem, QFileDialog, QLabel, QSlider, QStyle, QPlainTextEdit
+	QListWidgetItem, QFileDialog, QSlider, QStyle, QPlainTextEdit,\
+	QInputDialog
 
 from laugh_detector import LaughDetector
 from shot_detector import DetectShots
 from action_scene_detector import DetectAction
 from goal_detector import DetectGoal
-from helpers import HelperThread
+from actor_detector import DetectActor
+from helpers import HelperThread, StatusStream
 
 class Main(QWidget):
 	def __init__(self):
@@ -41,6 +45,7 @@ class Main(QWidget):
 			"Slow-mos", "Goal misses in soccer"
 		]
 		self.current_use_case = ""
+		self.chosen_actor = None
 
 		# methods that should be called for
 		# finding each use case
@@ -49,7 +54,7 @@ class Main(QWidget):
 				self.jokes_detector, 
 				self.action_detector, 
 				self.shot_detector,
-				0
+				self.actor_detector
 			],
 			"SPORTS" : [
 				self.goal_detector,
@@ -58,6 +63,14 @@ class Main(QWidget):
 				0
 			]
 		}
+
+		self.actors = []
+		self.labels = []
+
+		with open('label_map.pkl', 'rb') as f:
+			for ob in pickle.load(f):
+				self.labels.append(int(ob[0]))
+				self.actors.append(ob[1])
 
 		# the object of current use-case's class
 		self.fabbit = 0
@@ -123,19 +136,7 @@ class Main(QWidget):
 			self.width - list_width - op_btn_width, 2*op_btn_height			
 		)
 
-
-		class StatusStream():
-			def __init__(self, textbox):
-				self.textbox = textbox
-
-			def write(self, text):
-				self.textbox.appendPlainText(text)
-
-			def flush(self):
-				self.textbox.clear()
-
-		sys.stdout = StatusStream(self.status_bar)
-
+		self.original_stream = sys.stdout
 
 		play_button_h, play_button_w = 30, 30
 
@@ -163,11 +164,28 @@ class Main(QWidget):
 
 		self.vid_slider = QSlider(QtCore.Qt.Horizontal, self)
 		self.vid_slider.sliderMoved.connect(self.set_pos_slider)
+
+		self.stylesheet = """
+			QSlider::handle {
+				background: qlineargradient(
+					x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f
+				);
+				border: 1px solid #5c5c5c;
+				width : 10px;
+				margin : -2px 0;
+				border-radius : 3px;
+			}
+			QSlider::groove {
+				background : black;
+			}
+		"""
+		self.vid_slider.setStyleSheet(self.stylesheet)
+
 		self.vid_slider.setGeometry(
 			list_width+play_button_w, self.height-2*op_btn_height-play_button_h,
 			self.width+list_width-play_button_w, play_button_h
 		)			
-
+		
 
 		self.update_list("MOVIES")
 		self.setWindowTitle('FabBits')
@@ -255,7 +273,13 @@ class Main(QWidget):
 
 		# TODO - popup window for use cases that need extra info
 		#		like actor specific scenes to ask for actor name
-		pass
+		if self.current_cat == "MOVIES" and self.current_use_case == 3:
+			item, ok = QInputDialog.getItem(
+				self, 'Choose ..', 'Select an actor', self.actors, 0, False
+			)
+
+			if ok and item:
+				self.chosen_actor = item
 
 
 	def find_fabbits(self):
@@ -276,6 +300,9 @@ class Main(QWidget):
 		jokes.process()
 		self.fabbit = jokes
 		print("done processing fabbits for "+self.file)
+		
+		timestamps = self.fabbit.get_timestamps()
+		self.highlight(timestamps)
 
 
 	def shot_detector(self):
@@ -283,7 +310,7 @@ class Main(QWidget):
 		summary = DetectShots(self.file)
 		summary.process()
 		self.fabbit = summary
-		print("done processing fabbits for "+self.file)
+		print("Done processing fabbits for "+self.file+ ". Click Save FabBits to, well, save.")
 
 
 	def action_detector(self):
@@ -291,7 +318,26 @@ class Main(QWidget):
 		action = DetectAction(self.file)
 		action.process()
 		self.fabbit = action
-		print("done processing fabbits for "+self.file)
+		timestamps = self.fabbit.get_timestamps()
+		self.highlight(timestamps)
+
+
+	def actor_detector(self):
+		if not self.chosen_actor:
+			print("You haven't selected an actor.")
+			return
+
+		actor_label = 0
+		for i in range(0, len(self.actors)) :
+			if self.actors[i] == self.chosen_actor :
+				actor_label = self.labels[i]
+
+		actor_specific = DetectActor(self.file, actor_label)
+		actor_specific.process()
+		self.fabbit = actor_specific
+
+		timestamps = self.fabbit.get_timestamps()
+		self.highlight(timestamps)
 
 
 	def goal_detector(self):
@@ -300,12 +346,45 @@ class Main(QWidget):
 		goals.process()
 		self.fabbit = goals
 		print("done processing fabbits for "+self.file)
+		timestamps = self.fabbit.get_timestamps()
+		self.highlight(timestamps)
+
+
+	def highlight(self, timestamps):
+		duration = timestamps["duration"]
+		timestamps = timestamps["timestamps"]
+		
+		style = """
+			QSlider::handle {
+				background: qlineargradient(
+					x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f
+				);
+				border: 1px solid #5c5c5c;
+				width : 10px;
+				margin : -2px 0;
+				border-radius : 3px;
+			} 
+		"""
+
+		style += """QSlider::groove { 
+			background : qlineargradient(x1:0, y1:0, x2:1, y2:0, stop : 0 black"""
+
+		for t in timestamps:
+			style += ",stop:"+str(t['s']/duration-0.00001)+" black"
+			style += ",stop:"+str(t['s']/duration)+" blue"
+			style += ",stop:"+str(t['e']/duration)+" blue"
+			style += ",stop:"+str(t['e']/duration+0.00001)+" black"
+			print(t['s'], t['e'], t['s']/duration, t['e']/duration)
+
+		style += ");}"
+
+		self.vid_slider.setStyleSheet(style)
 
 
 	def save_fabbits(self):
-		thread = HelperThread("Saving 1", self.fabbit.save)
+		sys.stdout = self.original_stream
+		thread = HelperThread("Saving", self.fabbit.save)
 		thread.start()
-
 
 	def set_file(self):
 		"""
@@ -324,6 +403,9 @@ class Main(QWidget):
 			QMediaContent(QtCore.QUrl.fromLocalFile(self.file))
 		)
 		self.vid_button.setEnabled(True)
+		sys.stdout = StatusStream(self.status_bar)
+
+		self.vid_slider.setStyleSheet(self.stylesheet)
 
 		self.filename = self.file[ self.file.rfind('/')+1 : ]
 		print("loaded "+ self.filename)

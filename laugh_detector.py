@@ -88,6 +88,13 @@ class LaughDetector():
 		} 
 
 
+	def get_timestamps(self):
+		return {
+			"timestamps" : self.timestamps,
+			"duration" : int(self.file.duration)
+		} 		
+
+
 	def save_laughs(self):
 		for obj in self.timestamps:
 			self.jokes.append(self.file.subclip(obj['s'], obj['e']))

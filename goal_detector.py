@@ -11,7 +11,6 @@
 import cv2
 import pickle
 import numpy as np
-from matplotlib import pyplot as plt
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 class DetectGoal():
@@ -27,13 +26,14 @@ class DetectGoal():
 			self.compare_ssim = pickle.load(f) 
 
 		self.goals = []
+		print(self.file.get(cv2.CAP_PROP_FRAME_COUNT)/self.fps)
 
 
 	def process(self):
 
 		# search this period for the frame with min edge intensity
 		# a frame like that will make the scoreboard more distinguishable
-		l, r = 15*self.fps*60, 22*self.fps*60
+		l, r = 15*self.fps*60, 35*self.fps*60
 		self.file.set(1, l)
 		min_thres, min_thres_frame = 100000, 0
 		data = []
@@ -88,9 +88,10 @@ class DetectGoal():
 			if c1 and c2:
 				bb.append(box)
 
+
 		#corner points of the scoreboard
 		x1, x2 = min(bb[0][0][0], bb[0][2][0]), max(bb[0][0][0], bb[0][2][0]) 
-		y1, y2 = min(bb[0][0][1], bb[0][2][1])+5, max(bb[0][0][1], bb[0][2][1])-5
+		y1, y2 = min(bb[0][0][1], bb[0][2][1]), max(bb[0][0][1], bb[0][2][1])
 		del contour
 		del bb
 
@@ -258,6 +259,20 @@ class DetectGoal():
 		return self.goals
 
 
+	def get_timestamps(self):
+		goals = []
+		for goal in self.goals:
+			goals.append({
+				's' : goal/self.fps-30,
+				'e' : goal/self.fps+10
+			})
+
+		return {
+			"timestamps" : goals,
+			"duration" : self.file.get(cv2.CAP_PROP_FRAME_COUNT)/self.fps
+		}
+
+
 	def save_goals(self):
 		goals = []
 		mp_file = VideoFileClip(self.file_path)
@@ -267,7 +282,7 @@ class DetectGoal():
 			)
 
 		goals = concatenate_videoclips(goals)
-		goals.write_videofile('[Fabbits] '+self.filename, codec='libx264')
+		goals.write_videofile('[FabBits] '+self.filename, codec='libx264')
 
 
 	def save(self):
