@@ -8,7 +8,7 @@ FabBits is a standalone cross-platform software capable of finding certain inter
 * Slo-mos in Sports - ❌
 * Goals in Soccer - ✅
 * Goal misses in Soccer - ⭕
-* Three pointers in Basketball - ⭕
+* Three pointers in Basketball - ✅
 
 ## Requirements
 You need the following things to run FabBits -
@@ -18,6 +18,8 @@ You need the following things to run FabBits -
 3. [Moviepy](https://zulko.github.io/moviepy/) - Used for video editing and audio processing
 4. [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) - Used to make the GUI
 5. [Scipy](https://www.riverbankcomputing.com/software/pyqt/intro) - Used for audio processing
+6. [Tesserocr](https://github.com/sirfz/tesserocr) - Used for, well, OCR
+7. [Pillow](https://pillow.readthedocs.io/en/latest/) - Used to preprocess images for OCR
 
 The python dependencies can be installed by running - 
 ```
@@ -25,6 +27,8 @@ pip3 install scipy
 pip3 install opencv-python
 pip3 install moviepy
 pip3 install pyqt5
+pip3 install Pillow
+pip3 install tesserocr
 ```
 
 or if you are the Anaconda kind -
@@ -33,6 +37,8 @@ conda install -c conda-forge scipy
 conda install -c conda-forge opencv
 conda install -c conda-forge moviepy
 conda install -c anaconda pyqt 
+conda install -c conda-forge pillow
+conda install -c simonflueckiger tesserocr 
 ```
 ## Usage
 Once that's done, run the main GUI by -
