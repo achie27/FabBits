@@ -26,7 +26,6 @@ class DetectGoal():
 			self.compare_ssim = pickle.load(f) 
 
 		self.goals = []
-		print(self.file.get(cv2.CAP_PROP_FRAME_COUNT)/self.fps)
 
 
 	def process(self):

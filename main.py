@@ -25,6 +25,7 @@ from shot_detector import DetectShots
 from action_scene_detector import DetectAction
 from goal_detector import DetectGoal
 from actor_detector import DetectActor
+from three_pointer_detector import Detect3Pointers
 from helpers import HelperThread, StatusStream
 
 class Main(QWidget):
@@ -58,7 +59,7 @@ class Main(QWidget):
 			],
 			"SPORTS" : [
 				self.goal_detector,
-				0,
+				self.three_pointer_detector,
 				0,
 				0
 			]
@@ -345,6 +346,16 @@ class Main(QWidget):
 		goals = DetectGoal(self.file)
 		goals.process()
 		self.fabbit = goals
+		print("done processing fabbits for "+self.file)
+		timestamps = self.fabbit.get_timestamps()
+		self.highlight(timestamps)
+
+
+	def three_pointer_detector(self):
+		print("processing")
+		tpointers = Detect3Pointers(self.file)
+		tpointers.process()
+		self.fabbits = tpointers
 		print("done processing fabbits for "+self.file)
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
