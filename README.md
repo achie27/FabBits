@@ -56,6 +56,12 @@ To find your FabBit of choice -
 You can also run the respective files of use-cases to get their FabBit, like -
 <code>python3 goal_detector.py soccer_match.mp4</code>
 
+## Blog
+I have mentioned almost everything about how I built FabBits on my [blog](https://medium.com/@achie27). Give it a read if you want to build something involving the use-cases I have done!
+
+## Samples
+This drive [folder](https://drive.google.com) contains a list of videos and the video output FabBits produced.
+
 ## Contributing
 Pull requests are welcome! Although for major changes, please open an issue first to discuss what you would like to change.
 
