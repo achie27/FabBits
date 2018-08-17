@@ -27,9 +27,10 @@ class Detect3Pointers():
 		for x in range(0, 120):
 			random_frames.append([self.file.read()[1], self.file.read()[1]])
 			frame_nos.append(n)
-			for _ in range(0, 24):
+			for _ in range(0, int(self.fps-1)):
 				self.file.read()
-		n+=26
+			
+			n+=self.fps+1
 
 		frame_diff = []
 
@@ -48,7 +49,7 @@ class Detect3Pointers():
 		ref_scoreboard_asp = 390/33
 
 		cand = []
-		for k in range(0, len(random_frames)):
+		for k in range(0, len(frame_diff)):
 			fr = frame_diff[k]
 			w = cv2.Sobel(fr, cv2.CV_8U, 1,  0, ksize = 3)
 			bl = cv2.blur(w, (5, 5))
@@ -93,7 +94,7 @@ class Detect3Pointers():
 		scoreboard = cv2.cvtColor(scoreboard_col, cv2.COLOR_BGR2GRAY)
 	
 		self.file.set(1, 10*60*self.fps)
-		q, init_scrbd = 0, 0
+		q, init_scrbd = 5*60*25, 0
 
 		while True:
 			q+=1
@@ -162,7 +163,7 @@ class Detect3Pointers():
 				if sim[0] >= 0.80:
 					sc1, sc2 = 0, 0
 					
-					x = cv2.cvtColor(scoreboard_col[b1:b2, a1:a2], cv2.COLOR_BGR2RGB)
+					x = cv2.cvtColor(frame[y1:y2, x1+10:x2-10][b1:b2, a1:a2], cv2.COLOR_BGR2RGB)
 					xx = cv2.copyMakeBorder(x, 50, 50, 50, 25, cv2.BORDER_WRAP)
 					im = Image.fromarray((xx))
 					im = im.resize((im.size[0]*20, im.size[1]*20), Image.ANTIALIAS)
@@ -172,14 +173,42 @@ class Detect3Pointers():
 					while '' in o:
 						o.remove('')
 					
-					if len(o) > 1 and len(o[1]) >= 2 and o[1][0].isdigit():
-						pos = str(o[1:]).find(o[1][0])
-						sc1= int(o[1][0]) 
-						if not o[1][0] == o[1][1]: 
-							if str(o[1][0:pos]).isdigit():
-								sc1 = int(o[1][0:pos])
+					first = ''
+					second = ''
+					fl1, fl2 = True, True
 
-					y = cv2.cvtColor(scoreboard_col[d1:d2, c1:c2], cv2.COLOR_BGR2RGB)
+					if len(x[0]) == 7:
+						first = o[3]
+						fl1 = False
+
+					r = first.split(' ')
+					if fl1 and len(r) == 4:
+						sc1 = int(r[0])
+					else:
+						if len(o) > 1 and len(o[1]) >= 2 and o[1][0].isdigit():
+							pos = str(o[1:]).find(o[1][0])
+							sc1= int(o[1][0]) 
+							if not o[1][0] == o[1][1]: 
+								if str(o[1][0:pos]).isdigit():
+									sc1 = int(o[1][0:pos])
+			
+						if not sc1 == 0:
+							if sc1-pre1 > 3:
+								if sc1 % 10 == 7 or sc1 % 10 == 9:
+									tmp = sc1 - pre1 - 5
+									if tmp <= 3 and tmp >= 0:
+										sc1 = sc1-5
+
+							elif sc1-pre1 < 0:
+								if sc1 % 10 == 2 or sc1 % 10 == 4:
+									tmp = sc1 - pre1 + 5
+									if tmp <= 3 and tmp >= 0:
+										sc1 = sc1+5
+						
+						elif sc1 == 0:
+							sc1 = pre1
+
+					y = cv2.cvtColor(frame[y1:y2, x1+10:x2-10][d1:d2, c1:c2], cv2.COLOR_BGR2RGB)
 					yy = cv2.copyMakeBorder(y, 50, 50, 50, 25, cv2.BORDER_WRAP)
 					im = Image.fromarray((yy))
 					im = im.resize((im.size[0]*20, im.size[1]*20), Image.ANTIALIAS)
@@ -189,46 +218,44 @@ class Detect3Pointers():
 					while '' in o:
 						o.remove('')
 
-					if len(o) > 1 and len(o[1]) >= 2 and o[1][0].isdigit():
-						pos = str(o[1:]).find(o[1][0])
-						sc2= int(o[1][0]) 
-						if not o[1][0] == o[1][1]: 
-							if str(o[1][0:pos]).isdigit():
-								sc2 = int(o[1][0:pos])
+					if len(x[1]) == 7:    
+						second = o[3]
+						fl2 = False
 
-					if not sc1 == 0:
-						if sc1-pre1 > 3:
-							if sc1 % 10 == 7 or sc1 % 10 == 9:
-								tmp = sc1 - pre1 - 5
-								if tmp <= 3 and tmp >= 0:
-									sc1 = sc1-5
+					r = second.split(' ')
+					if fl2 and len(r) == 4:
+						sc2 = int(r[0])
+					else:
+						if len(o) > 1 and len(o[1]) >= 2 and o[1][0].isdigit():
+							pos = str(o[1:]).find(o[1][0])
+							sc2 = int(o[1][0]) 
+							if not o[1][0] == o[1][1]: 
+								if str(o[1][0:pos]).isdigit():
+									sc2 = int(o[1][0:pos])
 
-						elif sc1-pre1 < 0:
-							if sc1 % 10 == 2 or sc1 % 10 == 4:
-								tmp = sc1 - pre1 + 5
-								if tmp <= 3 and tmp >= 0:
-									sc1 = sc1+5
-					elif sc1 == 0:
-						sc1 = pre1
 
-					if not sc2 == 0:
-						if sc2-pre2 > 3:
-							if sc2 % 10 == 7 or sc2 % 10 == 9:
-								tmp = sc2 - pre2 - 5
-								if tmp <= 3 and tmp >= 0:
-									sc2 = sc2-5
+						if not sc2 == 0:
+							if sc2-pre2 > 3:
+								if sc2 % 10 == 7 or sc2 % 10 == 9:
+									tmp = sc2 - pre2 - 5
+									if tmp <= 3 and tmp >= 0:
+										sc2 = sc2-5
 
-						elif sc2-pre2 < 0:
-							if sc2 % 10 == 2 or sc2 % 10 == 4:
-								tmp = sc2 - pre2 + 5
-								if tmp <= 3 and tmp >= 0:
-									sc2 = sc2+5
+							elif sc2-pre2 < 0:
+								if sc2 % 10 == 2 or sc2 % 10 == 4:
+									tmp = sc2 - pre2 + 5
+									if tmp <= 3 and tmp >= 0:
+										sc2 = sc2+5
 
-					elif sc2 == 0:
-						sc2 = pre2
+						elif sc2 == 0:
+							sc2 = pre2
+
 
 					if sc1-pre1 == 3 or sc2 - pre2 == 3:
 						self.tpointers.append(p)
+						print(p)
+
+					pre1, pre2 = sc1, sc2
 
 
 	def get_3_pointers(self):
@@ -239,8 +266,8 @@ class Detect3Pointers():
 		tpointers = []
 		for tp in self.tpointers:
 			tpointers.append({
-				's' : tp/self.fps - 8,
-				'e' : tp/self.fps + 5
+				's' : tp/self.fps - 15,
+				'e' : tp/self.fps + 2
 			})
 
 		return {
@@ -254,11 +281,11 @@ class Detect3Pointers():
 		mp_file = VideoFileClip(self.file_path)
 		for tp in self.tpointers:
 			tpointers.append(
-				mp_file.subclip(tp/self.fps-8, tp/self.fps+5)
+				mp_file.subclip(tp/self.fps-15, tp/self.fps+2)
 			)
 
 		tpointers = concatenate_videoclips(tpointers)
-		goals.write_videofile('[FabBits] ' + self.filename, codec='libx264')
+		tpointers.write_videofile('[FabBits] ' + self.filename, codec='libx264')
 
 
 	def save(self):
@@ -279,3 +306,4 @@ if __name__ == '__main__':
 	print(goals)
 
 	op.save()
+
