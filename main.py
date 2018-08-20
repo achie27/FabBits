@@ -32,6 +32,7 @@ class Main(QWidget):
 	def __init__(self):
 		super().__init__()
 
+		self.file = ''
 		self.current_cat = ""
 		self.categories = ["MOVIES", "SPORTS"]
 
@@ -42,8 +43,7 @@ class Main(QWidget):
 		]
 
 		self.use_cases['SPORTS'] = [
-			"Goals in soccer", "Three-pointers in basketball",
-			"Slow-mos", "Goal misses in soccer"
+			"Goals in soccer", "Three-pointers in basketball"
 		]
 		self.current_use_case = ""
 		self.chosen_actor = None
@@ -59,9 +59,7 @@ class Main(QWidget):
 			],
 			"SPORTS" : [
 				self.goal_detector,
-				self.three_pointer_detector,
-				0,
-				0
+				self.three_pointer_detector
 			]
 		}
 
@@ -115,16 +113,18 @@ class Main(QWidget):
 		op_btn_height = (self.height - (list_height+btn_height))/2
 		op_btn_width = list_width*3/4
 
-		op_btn1 = QPushButton("Find FabBits", self)
-		op_btn1.clicked.connect(self.find_fabbits)
-		op_btn1.setGeometry(
+		self.find_button = QPushButton("Find FabBits", self)
+		self.find_button.clicked.connect(self.find_fabbits)
+		self.find_button.setEnabled(False)
+		self.find_button.setGeometry(
 			self.width-list_width*3/4, list_height+btn_height, 
 			op_btn_width, op_btn_height
 		)
 
-		op_btn2 = QPushButton("Save FabBits", self)
-		op_btn2.clicked.connect(self.save_fabbits)
-		op_btn2.setGeometry(
+		self.save_button = QPushButton("Save FabBits", self)
+		self.save_button.clicked.connect(self.save_fabbits)
+		self.save_button.setEnabled(False)
+		self.save_button.setGeometry(
 			self.width-list_width*3/4, 
 			list_height+btn_height+op_btn_height, 
 			op_btn_width, op_btn_height
@@ -137,6 +137,7 @@ class Main(QWidget):
 			self.width - list_width - op_btn_width, 2*op_btn_height			
 		)
 
+		# output shows in the status bar
 		self.original_stream = sys.stdout
 
 		play_button_h, play_button_w = 30, 30
@@ -187,7 +188,6 @@ class Main(QWidget):
 			self.width+list_width-play_button_w, play_button_h
 		)			
 		
-
 		self.update_list("MOVIES")
 		self.setWindowTitle('FabBits')
 		self.setFixedSize(self.width, self.height)
@@ -291,6 +291,8 @@ class Main(QWidget):
 		cat = self.current_cat
 		use_case = self.current_use_case
 		f = lambda : self.processors[cat][use_case]()
+
+		self.find_button.setEnabled(False)
 		thread = HelperThread("Finding FabBit 1", f)
 		thread.start()
 
@@ -304,6 +306,8 @@ class Main(QWidget):
 		
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def shot_detector(self):
@@ -312,6 +316,8 @@ class Main(QWidget):
 		summary.process()
 		self.fabbit = summary
 		print("Done processing fabbits for "+self.file+ ". Click Save FabBits to, well, save.")
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def action_detector(self):
@@ -321,6 +327,8 @@ class Main(QWidget):
 		self.fabbit = action
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def actor_detector(self):
@@ -332,6 +340,7 @@ class Main(QWidget):
 		for i in range(0, len(self.actors)) :
 			if self.actors[i] == self.chosen_actor :
 				actor_label = self.labels[i]
+				break
 
 		actor_specific = DetectActor(self.file, actor_label)
 		actor_specific.process()
@@ -339,6 +348,8 @@ class Main(QWidget):
 
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def goal_detector(self):
@@ -349,6 +360,8 @@ class Main(QWidget):
 		print("done processing fabbits for "+self.file)
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def three_pointer_detector(self):
@@ -359,6 +372,8 @@ class Main(QWidget):
 		print("done processing fabbits for "+self.file)
 		timestamps = self.fabbit.get_timestamps()
 		self.highlight(timestamps)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(True)
 
 
 	def highlight(self, timestamps):
@@ -385,7 +400,6 @@ class Main(QWidget):
 			style += ",stop:"+str(t['s']/duration)+" blue"
 			style += ",stop:"+str(t['e']/duration)+" blue"
 			style += ",stop:"+str(t['e']/duration+0.00001)+" black"
-			print(t['s'], t['e'], t['s']/duration, t['e']/duration)
 
 		style += ");}"
 
@@ -397,23 +411,31 @@ class Main(QWidget):
 		thread = HelperThread("Saving", self.fabbit.save)
 		thread.start()
 
+
 	def set_file(self):
 		"""
 		For file dialog to get input video
 
 		"""
 
-		self.file = QFileDialog.getOpenFileName(
+		file = QFileDialog.getOpenFileName(
 			self, 'Open file', '/home'
 		)
 
-		if self.file[0]:
-			self.file = self.file[0]
+		if file[0] == '':
+			if self.file == '':
+				self.set_file()
+		else:
+			self.file = file[0]
 
 		self.media_player.setMedia(
 			QMediaContent(QtCore.QUrl.fromLocalFile(self.file))
 		)
+		
 		self.vid_button.setEnabled(True)
+		self.find_button.setEnabled(True)
+		self.save_button.setEnabled(False)
+
 		sys.stdout = StatusStream(self.status_bar)
 
 		self.vid_slider.setStyleSheet(self.stylesheet)

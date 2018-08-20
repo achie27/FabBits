@@ -253,7 +253,6 @@ class Detect3Pointers():
 
 					if sc1-pre1 == 3 or sc2 - pre2 == 3:
 						self.tpointers.append(p)
-						print(p)
 
 					pre1, pre2 = sc1, sc2
 
