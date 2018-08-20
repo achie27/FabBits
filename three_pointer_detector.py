@@ -4,7 +4,6 @@ import tesserocr
 import numpy as np
 from PIL import Image
 from moviepy.editor import VideoFileClip, concatenate_videoclips
-from matplotlib import pyplot as plt
 
 class Detect3Pointers():
 	def __init__(self, file_path, ssim_pickle="ssim.pkl"):
